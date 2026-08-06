@@ -70,6 +70,15 @@ async def execute_stored_request(
                 work_dir=work_dir,
             )
 
+        file_size = artifact.path.stat().st_size if artifact.path.exists() else 0
+        if file_size > 50 * 1024 * 1024:
+            artifact.path.unlink(missing_ok=True)
+            await status_message.edit_text(
+                f"⚠️ File too large ({file_size / (1024*1024):.1f} MB). "
+                "Telegram bots can only upload files up to 50 MB."
+            )
+            return
+
         await upload_artifact(
             bot=source_message.bot,
             status_message=status_message,
