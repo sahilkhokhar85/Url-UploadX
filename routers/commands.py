@@ -3,9 +3,16 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 
 from config import Settings
+from services.caption_style_store import CaptionStyleStore
 from services.format_preference_store import FormatPreferenceStore
-from utils.callbacks import FormatCallback
-from utils.keyboards import about_keyboard, help_keyboard, start_keyboard, format_preference_keyboard
+from utils.callbacks import CaptionStyleCallback, FormatCallback
+from utils.keyboards import (
+    about_keyboard,
+    caption_style_keyboard,
+    help_keyboard,
+    start_keyboard,
+    format_preference_keyboard,
+)
 from utils import text
 
 router = Router(name="commands")
@@ -83,6 +90,33 @@ async def format_callback(
         format_store.set(query.from_user.id, callback_data.value)
     await query.message.edit_reply_markup(
         reply_markup=format_preference_keyboard(callback_data.value)
+    )
+    await query.answer("Saved!")
+
+@router.message(Command("setcaption"), F.chat.type == "private")
+async def setcaption_command(
+    message: Message, settings: Settings, caption_store: CaptionStyleStore
+) -> None:
+    if not _is_authorized(message, settings):
+        await message.answer("🚫 You're not authorized to use this bot.")
+        return
+    current = caption_store.get(message.from_user.id)
+    await message.answer(
+        "Choose your caption style:",
+        reply_markup=caption_style_keyboard(current),
+    )
+
+
+@router.callback_query(CaptionStyleCallback.filter())
+async def caption_style_callback(
+    query: CallbackQuery, callback_data: CaptionStyleCallback, caption_store: CaptionStyleStore
+) -> None:
+    if not query.message or not query.from_user:
+        await query.answer()
+        return
+    caption_store.set(query.from_user.id, callback_data.value)
+    await query.message.edit_reply_markup(
+        reply_markup=caption_style_keyboard(callback_data.value)
     )
     await query.answer("Saved!")
 
