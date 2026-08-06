@@ -9,6 +9,7 @@ from config import Settings
 from services.direct_downloads import download_direct_file
 from services.request_store import RequestStore
 from services.thumbnail_store import ThumbnailStore
+from services.caption_style_store import CaptionStyleStore
 from services.telegram_uploads import upload_artifact
 from services.ytdlp import download_quick_youtube, download_selected_format
 from utils import text
@@ -27,6 +28,7 @@ async def execute_stored_request(
     settings: Settings,
     request_store: RequestStore,
     thumbnail_store: ThumbnailStore,
+    caption_store: CaptionStyleStore,
 ) -> None:
     started_at = datetime.now()
     work_dir = request_store.work_directory(stored.token)
