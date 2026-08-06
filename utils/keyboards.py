@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from utils.callbacks import RequestCallback, UiCallback
 from utils.models import DownloadOption
 from utils.callbacks import FormatCallback
+from utils.callbacks import CaptionStyleCallback
 
 
 def start_keyboard() -> InlineKeyboardMarkup:
@@ -78,6 +79,7 @@ def format_keyboard(token: str, options: list[DownloadOption]) -> InlineKeyboard
     )
     return builder.as_markup()
 
+
 def format_preference_keyboard(current: str | None) -> InlineKeyboardMarkup:
     def _label(value: str, title: str) -> str:
         return f"✅ {title}" if current == value else title
@@ -99,6 +101,40 @@ def format_preference_keyboard(current: str | None) -> InlineKeyboardMarkup:
         InlineKeyboardButton(
             text=_label("ask", "Ask every time"),
             callback_data=FormatCallback(value="ask").pack(),
+        )
+    )
+    return builder.as_markup()
+
+
+def caption_style_keyboard(current: str | None) -> InlineKeyboardMarkup:
+    active = current or "normal"
+
+    def _label(value: str, title: str) -> str:
+        return f"✅ {title}" if active == value else title
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=_label("normal", "Normal"),
+            callback_data=CaptionStyleCallback(value="normal").pack(),
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=_label("bold", "Bold"),
+            callback_data=CaptionStyleCallback(value="bold").pack(),
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=_label("italic", "Italic"),
+            callback_data=CaptionStyleCallback(value="italic").pack(),
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=_label("mono", "Mono"),
+            callback_data=CaptionStyleCallback(value="mono").pack(),
         )
     )
     return builder.as_markup()
