@@ -76,6 +76,10 @@ class Settings:
     def format_prefs_dir(self) -> Path:
         return self.download_location / "format_prefs"
 
+    @property
+    def caption_style_dir(self) -> Path:
+        return self.download_location / "caption_style"
+
     def ensure_directories(self) -> None:
         for path in (
             self.download_location,
@@ -83,5 +87,6 @@ class Settings:
             self.requests_dir,
             self.work_dir,
             self.format_prefs_dir,
+            self.caption_style_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
