@@ -67,6 +67,12 @@ async def download_direct_file(
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.get(parsed_input.source_url, proxy=settings.http_proxy or None) as response:
             response.raise_for_status()
+            content_length = int(response.headers.get("Content-Length", "0") or "0")
+            if content_length and content_length > 50 * 1024 * 1024:
+                raise RuntimeError(
+                    f"File too large ({content_length / (1024*1024):.1f} MB). "
+                    "Telegram bots can only upload files up to 50 MB."
+                )
             content_type = response.headers.get("Content-Type", "")
             ext = option.file_ext or suggested_ext
             if not ext:
