@@ -3,7 +3,9 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 
 from config import Settings
-from utils.keyboards import about_keyboard, help_keyboard, start_keyboard
+from services.format_preference_store import FormatPreferenceStore
+from utils.callbacks import FormatCallback
+from utils.keyboards import about_keyboard, help_keyboard, start_keyboard, format_preference_keyboard
 from utils import text
 
 router = Router(name="commands")
@@ -52,6 +54,37 @@ async def about_command(message: Message, settings: Settings) -> None:
         reply_markup=about_keyboard(),
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
+
+
+@router.message(Command("setformat"), F.chat.type == "private")
+async def setformat_command(
+    message: Message, settings: Settings, format_store: FormatPreferenceStore
+) -> None:
+    if not _is_authorized(message, settings):
+        await message.answer("🚫 You're not authorized to use this bot.")
+        return
+    current = format_store.get(message.from_user.id)
+    await message.answer(
+        "Choose your default send format for direct links:",
+        reply_markup=format_preference_keyboard(current),
+    )
+
+
+@router.callback_query(FormatCallback.filter())
+async def format_callback(
+    query: CallbackQuery, callback_data: FormatCallback, format_store: FormatPreferenceStore
+) -> None:
+    if not query.message or not query.from_user:
+        await query.answer()
+        return
+    if callback_data.value == "ask":
+        format_store.clear(query.from_user.id)
+    else:
+        format_store.set(query.from_user.id, callback_data.value)
+    await query.message.edit_reply_markup(
+        reply_markup=format_preference_keyboard(callback_data.value)
+    )
+    await query.answer("Saved!")
 
 
 async def handle_ui_callback(callback: CallbackQuery, action: str) -> None:
