@@ -13,6 +13,7 @@ from routers.commands import router as commands_router
 from routers.intake import router as intake_router
 from routers.thumbnails import router as thumbnails_router
 from services.cooldown import CooldownManager
+from services.format_preference_store import FormatPreferenceStore
 from services.request_store import RequestStore
 from services.thumbnail_store import ThumbnailStore
 
@@ -28,6 +29,7 @@ def create_dispatcher(settings: Settings) -> Dispatcher:
         cooldown=CooldownManager(timeout_seconds=settings.process_max_timeout),
         request_store=RequestStore(settings.requests_dir, settings.work_dir),
         thumbnail_store=ThumbnailStore(settings.thumbnails_dir),
+        format_store=FormatPreferenceStore(settings.format_prefs_dir),
     )
     return dispatcher
 
