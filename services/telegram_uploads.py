@@ -67,6 +67,12 @@ async def upload_artifact(
                 thumbnail=thumb,
                 title=artifact.file_name,
             )
+    elif artifact.send_type == "photo":
+        async with ChatActionSender.upload_photo(bot=bot, chat_id=source_message.chat.id):
+            await source_message.reply_photo(
+                photo=file_input,
+                caption=artifact.caption,
+            )
     elif artifact.send_type == "video_note":
         length, duration = video_note_metadata(artifact.path)
         async with ChatActionSender.upload_video_note(
