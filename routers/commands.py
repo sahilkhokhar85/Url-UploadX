@@ -2,6 +2,7 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 
+from config import Settings
 from utils.keyboards import about_keyboard, help_keyboard, start_keyboard
 from utils import text
 
@@ -16,14 +17,24 @@ async def _send_start(target: Message, name: str) -> None:
     )
 
 
+def _is_authorized(message: Message, settings: Settings) -> bool:
+    return bool(message.from_user) and message.from_user.id in settings.auth_users
+
+
 @router.message(Command("start"), F.chat.type == "private")
-async def start_command(message: Message) -> None:
+async def start_command(message: Message, settings: Settings) -> None:
+    if not _is_authorized(message, settings):
+        await message.answer("🚫 You're not authorized to use this bot.")
+        return
     first_name = message.from_user.first_name if message.from_user else "there"
     await _send_start(message, first_name)
 
 
 @router.message(Command("help"), F.chat.type == "private")
-async def help_command(message: Message) -> None:
+async def help_command(message: Message, settings: Settings) -> None:
+    if not _is_authorized(message, settings):
+        await message.answer("🚫 You're not authorized to use this bot.")
+        return
     await message.answer(
         text.HELP_TEXT,
         reply_markup=help_keyboard(),
@@ -32,7 +43,10 @@ async def help_command(message: Message) -> None:
 
 
 @router.message(Command("about"), F.chat.type == "private")
-async def about_command(message: Message) -> None:
+async def about_command(message: Message, settings: Settings) -> None:
+    if not _is_authorized(message, settings):
+        await message.answer("🚫 You're not authorized to use this bot.")
+        return
     await message.answer(
         text.ABOUT_TEXT,
         reply_markup=about_keyboard(),
