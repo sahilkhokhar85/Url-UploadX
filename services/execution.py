@@ -77,6 +77,7 @@ async def execute_stored_request(
             artifact=artifact,
             thumbnail_path=thumbnail_store.get(user_id),
             started_at=started_at,
+            caption_style=caption_store.get(user_id),
         )
         logger.info(
             "Completed request action | user=%s token=%s file=%s send_type=%s",
