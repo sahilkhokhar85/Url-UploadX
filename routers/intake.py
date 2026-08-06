@@ -7,6 +7,7 @@ from aiogram.types import Message
 
 from config import Settings
 from services.cooldown import CooldownManager
+from services.caption_style_store import CaptionStyleStore
 from services.execution import execute_stored_request
 from services.format_preference_store import FormatPreferenceStore
 from services.parsing import extract_link_text, is_probable_youtube_url, parse_user_input
@@ -35,6 +36,7 @@ async def intake_message(
     request_store: RequestStore,
     format_store: FormatPreferenceStore,
     thumbnail_store: ThumbnailStore,
+    caption_store: CaptionStyleStore,
 ) -> None:
     raw_text = message.text or ""
     if not extract_link_text(raw_text, message.entities):
@@ -153,6 +155,7 @@ async def intake_message(
                 settings=settings,
                 request_store=request_store,
                 thumbnail_store=thumbnail_store,
+                caption_store=caption_store,
             )
             return
 
