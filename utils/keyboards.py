@@ -3,6 +3,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from utils.callbacks import RequestCallback, UiCallback
 from utils.models import DownloadOption
+from utils.callbacks import FormatCallback
 
 
 def start_keyboard() -> InlineKeyboardMarkup:
@@ -73,6 +74,31 @@ def format_keyboard(token: str, options: list[DownloadOption]) -> InlineKeyboard
     builder.row(
         InlineKeyboardButton(
             text="Close", callback_data=UiCallback(action="close").pack()
+        )
+    )
+    return builder.as_markup()
+
+def format_preference_keyboard(current: str | None) -> InlineKeyboardMarkup:
+    def _label(value: str, title: str) -> str:
+        return f"✅ {title}" if current == value else title
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=_label("document", "Document"),
+            callback_data=FormatCallback(value="document").pack(),
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=_label("media", "Media"),
+            callback_data=FormatCallback(value="media").pack(),
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=_label("ask", "Ask every time"),
+            callback_data=FormatCallback(value="ask").pack(),
         )
     )
     return builder.as_markup()
