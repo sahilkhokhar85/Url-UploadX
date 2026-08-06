@@ -14,6 +14,7 @@ from utils.models import DownloadArtifact, DownloadOption, ParsedInput
 
 VIDEO_EXTENSIONS = {"mp4", "mkv", "webm", "mov"}
 AUDIO_EXTENSIONS = {"mp3", "m4a", "aac", "wav", "flac", "opus", "weba"}
+IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
 logger = logging.getLogger(__name__)
 
 
@@ -161,6 +162,8 @@ def build_direct_options(
         send_type = "video"
     elif ext and ext.lower() in AUDIO_EXTENSIONS:
         send_type = "audio"
+    elif ext and ext.lower() in IMAGE_EXTENSIONS:
+        send_type = "photo"
 
     options = [
         DownloadOption(
