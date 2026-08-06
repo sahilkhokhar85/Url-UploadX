@@ -11,3 +11,6 @@ class RequestCallback(CallbackData, prefix="req"):
 
 class FormatCallback(CallbackData, prefix="fmt"):
     value: str
+
+class CaptionStyleCallback(CallbackData, prefix="cap"):
+    value: str
