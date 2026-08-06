@@ -8,3 +8,6 @@ class UiCallback(CallbackData, prefix="ui"):
 class RequestCallback(CallbackData, prefix="req"):
     token: str
     action: str
+
+class FormatCallback(CallbackData, prefix="fmt"):
+    value: str
