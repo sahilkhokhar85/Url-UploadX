@@ -38,6 +38,15 @@ async def intake_message(
     if not message.from_user:
         return
 
+    if message.from_user.id not in settings.auth_users:
+        logger.info(
+            "Blocked unauthorized user | user=%s chat=%s",
+            message.from_user.id,
+            message.chat.id,
+        )
+        await message.answer("🚫 You're not authorized to use this bot.")
+        return
+
     logger.info(
         "Incoming link | user=%s chat=%s source=%s",
         message.from_user.id,
