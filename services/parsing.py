@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from urllib.parse import urlparse
+import re
 
 from aiogram.types import MessageEntity
 
@@ -26,16 +27,49 @@ def _extract_url(text: str, entities: list[MessageEntity] | None) -> str:
     return entity_url.strip()
 
 
+def _normalize_url(url: str) -> str:
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+
+    # Hotstar image links: strip transform params, ensure .jpg
+    if hostname.endswith("hotstar.com") and "/image/upload/" in url:
+        url = re.sub(r"/image/upload/[^/]+/sources/", "/image/upload/sources/", url)
+        if not url.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+            url = f"{url}.jpg"
+        return url
+
+    # Zee5 image links: strip transform params, ensure .jpg
+    if hostname.endswith("zee5.com") and "/image/upload/" in url:
+        url = re.sub(r"/image/upload/[^/]+/resources/", "/image/upload/resources/", url)
+        if not url.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+            url = f"{url}.jpg"
+        return url
+
+    # SonyLiv links: cut everything after .jpg
+    if hostname.endswith("sonyliv.com"):
+        match = re.search(r"^(.*?\.jpg)", url, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return url
+
+    # Prime Video / Amazon media links: strip transform suffix before .jpg
+    if hostname == "m.media-amazon.com":
+        url = re.sub(r"\._[\w,]+_\.jpg$", ".jpg", url, flags=re.IGNORECASE)
+        return url
+
+    return url
+
+
 def parse_user_input(
     text: str, entities: list[MessageEntity] | None = None
 ) -> ParsedInput:
     if "|" in text:
         parts = [part.strip() for part in text.split("|")]
         if len(parts) == 2:
-            return ParsedInput(source_url=parts[0], custom_file_name=parts[1])
+            return ParsedInput(source_url=_normalize_url(parts[0]), custom_file_name=parts[1])
         if len(parts) == 4:
             return ParsedInput(
-                source_url=parts[0],
+                source_url=_normalize_url(parts[0]),
                 custom_file_name=parts[1],
                 username=parts[2],
                 password=parts[3],
@@ -43,9 +77,9 @@ def parse_user_input(
 
     if " * " in text:
         url, file_name = [part.strip() for part in text.split(" * ", maxsplit=1)]
-        return ParsedInput(source_url=url, custom_file_name=file_name)
+        return ParsedInput(source_url=_normalize_url(url), custom_file_name=file_name)
 
-    return ParsedInput(source_url=_extract_url(text, entities))
+    return ParsedInput(source_url=_normalize_url(_extract_url(text, entities)))
 
 
 def is_probable_youtube_url(url: str) -> bool:
