@@ -7,8 +7,11 @@ from aiogram.types import Message
 
 from config import Settings
 from services.cooldown import CooldownManager
+from services.execution import execute_stored_request
+from services.format_preference_store import FormatPreferenceStore
 from services.parsing import extract_link_text, is_probable_youtube_url, parse_user_input
 from services.request_store import RequestStore
+from services.thumbnail_store import ThumbnailStore
 from services.ytdlp import (
     build_direct_options,
     build_quick_youtube_options,
@@ -30,6 +33,8 @@ async def intake_message(
     settings: Settings,
     cooldown: CooldownManager,
     request_store: RequestStore,
+    format_store: FormatPreferenceStore,
+    thumbnail_store: ThumbnailStore,
 ) -> None:
     raw_text = message.text or ""
     if not extract_link_text(raw_text, message.entities):
@@ -129,6 +134,28 @@ async def intake_message(
         len(options),
         (info or {}).get("title", "-"),
     )
+
+    # Auto-pick format for direct downloads if user has a saved preference
+    if request_type == "direct_download" and len(options) > 1:
+        preference = format_store.get(message.from_user.id)
+        if preference in ("document", "media"):
+            wants_document = preference == "document"
+            chosen = next(
+                (opt for opt in options if (opt.send_type == "document") == wants_document),
+                options[0],
+            )
+            await execute_stored_request(
+                status_message=status_message,
+                source_message=message,
+                user_id=message.from_user.id,
+                stored=stored,
+                option=chosen,
+                settings=settings,
+                request_store=request_store,
+                thumbnail_store=thumbnail_store,
+            )
+            return
+
     await status_message.edit_text(
         text.FORMAT_SELECTION,
         reply_markup=format_keyboard(token, options),
