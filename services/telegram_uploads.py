@@ -10,6 +10,7 @@ from aiogram.utils.chat_action import ChatActionSender
 
 from services.media import audio_duration, video_metadata, video_note_metadata
 from utils import text
+from utils.caption_style import apply_caption_style
 from utils.models import DownloadArtifact
 
 
@@ -30,10 +31,12 @@ async def upload_artifact(
     artifact: DownloadArtifact,
     thumbnail_path: str | None,
     started_at: datetime,
+    caption_style: str | None = None,
 ) -> None:
     await status_message.edit_text(text.upload_caption(artifact.file_name))
     thumb = _thumb_file(thumbnail_path)
     file_input = FSInputFile(artifact.path)
+    caption = apply_caption_style(artifact.caption, caption_style)
     download_seconds = int((datetime.now() - started_at).total_seconds())
     upload_started = datetime.now()
     logger.info(
