@@ -18,4 +18,4 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
-CMD ["uv", "run", "python", "bot.py"]
+CMD ["/app/.venv/bin/python", "bot.py"]
