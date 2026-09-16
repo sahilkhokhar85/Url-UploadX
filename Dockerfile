@@ -15,4 +15,4 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv pip install --system --no-cache .
 
-CMD ["python", "bot.py"]
+CMD ["/app/.venv/bin/python", "app/bot.py"]
