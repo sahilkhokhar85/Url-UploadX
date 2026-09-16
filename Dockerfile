@@ -18,6 +18,4 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
-RUN /app/.venv/bin/python -c "import aiogram; print('AIROGRAM OK:', aiogram.__version__)"
-
 CMD ["uv", "run", "python", "bot.py"]
