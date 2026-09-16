@@ -13,6 +13,9 @@ ENV PATH="/root/.local/bin:${PATH}"
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-RUN uv pip install --system --no-cache .
+RUN uv sync --frozen --no-dev --no-install-project
 
-CMD [".venv/bin/python", "bot.py"]
+COPY . .
+RUN uv sync --frozen --no-dev
+
+CMD ["uv", "run", "python", "bot.py"]
