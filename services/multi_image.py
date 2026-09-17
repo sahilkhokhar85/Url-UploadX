@@ -1,5 +1,4 @@
 from __future__ import annotations
-from services.parsing import _normalize_url
 
 import logging
 from datetime import datetime
@@ -9,6 +8,7 @@ from aiogram.types import Message
 from config import Settings
 from services.caption_style_store import CaptionStyleStore
 from services.direct_downloads import download_direct_file
+from services.parsing import _normalize_url
 from services.request_store import RequestStore
 from services.thumbnail_store import ThumbnailStore
 from services.telegram_uploads import upload_artifact
@@ -50,8 +50,8 @@ async def execute_multi_image_request(
             download_url = _normalize_url(original_url)
 
             parsed = ParsedInput(
-            source_url=download_url,
-            custom_file_name=None,
+                source_url=download_url,
+                custom_file_name=None,
             )
 
             option = DownloadOption(
@@ -83,13 +83,13 @@ async def execute_multi_image_request(
 
             # Sirf modified URL hone par link bhejo.
             if download_url != original_url:
-               await source_message.bot.send_message(
+                await source_message.bot.send_message(
             chat_id=source_message.chat.id,
-                     text=f"<b>{download_url}</b>",
-                     parse_mode="HTML",
-                     link_preview_options={
-                         "is_disabled": False,
-                     },
+                    text=f"<b>{download_url}</b>",
+                    parse_mode="HTML",
+                    link_preview_options={
+                        "is_disabled": False,
+                    },
                )
 
             await upload_artifact(
