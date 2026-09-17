@@ -71,14 +71,30 @@ async def upload_artifact(
 
     # Normal download / HD edited link:
     # final link + file.
-    #
-    # Portrait / Poster / Cover:
-    # multi_image.py mein skip_link=True hoga,
-    # isliye yahan link send nahi hoga.
-    if artifact.source_url and not artifact.skip_link:
+    if (
+        artifact.source_url
+        and not artifact.skip_link
+    ):
         await bot.send_message(
-    chat_id=source_message.chat.id,
-    text=f"<b>{artifact.source_url}</b>",
+            chat_id=source_message.chat.id,
+            text=f"<b>{artifact.source_url}</b>",
+            parse_mode="HTML",
+            link_preview_options={
+                "is_disabled": False,
+            },
+        )
+
+    # Multi-image Portrait / Poster / Cover:
+    # link sirf tab bhejna hai jab final URL original URL
+    # se different ho.
+    elif (
+        artifact.source_url
+        and artifact.original_url
+        and artifact.source_url != artifact.original_url
+    ):
+        await bot.send_message(
+            chat_id=source_message.chat.id,
+            text=f"<b>{artifact.source_url}</b>",
             parse_mode="HTML",
             link_preview_options={
                 "is_disabled": False,
