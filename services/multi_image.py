@@ -41,9 +41,11 @@ async def execute_multi_image_request(
                 f"({index}/{len(links)})"
             )
 
+            # Filename/caption ke liye title nahi,
+            # current image ka label use hoga.
             parsed = ParsedInput(
                 source_url=url,
-                custom_file_name=title,
+                custom_file_name=label,
             )
 
             option = DownloadOption(
@@ -63,7 +65,8 @@ async def execute_multi_image_request(
                 suggested_ext="jpg",
             )
 
-            artifact.caption = title
+            # Caption mein title nahi, actual file name aayega.
+            artifact.caption = artifact.file_name
 
             await upload_artifact(
                 bot=source_message.bot,
