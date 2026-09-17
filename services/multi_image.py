@@ -67,16 +67,30 @@ async def execute_multi_image_request(
                 suggested_ext="jpg",
             )
 
-            # Downloaded filename caption mein rahega.
+            # Filename caption mein rahega.
             artifact.caption = artifact.file_name
 
-            # Original URL preserve rahega.
+            # Original URL save rahega.
             artifact.original_url = url
 
-            # Same URL hone par link nahi bhejna.
-            # Changed final URL hone par telegram_uploads.py
-            # automatically changed URL bhejega.
+            # Multi-image ke liye link upload_artifact()
+            # ke andar automatically nahi bhejna.
             artifact.skip_link = True
+
+            # Agar final URL original URL se different hai,
+            # toh changed URL image se pehle send hoga.
+            if (
+                artifact.source_url
+                and artifact.source_url != url
+            ):
+                await source_message.bot.send_message(
+                    chat_id=source_message.chat.id,
+                    text=f"<b>{artifact.source_url}</b>",
+                    parse_mode="HTML",
+                    link_preview_options={
+                        "is_disabled": False,
+                    },
+                )
 
             await upload_artifact(
                 bot=source_message.bot,
