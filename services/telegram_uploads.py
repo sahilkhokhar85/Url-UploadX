@@ -69,29 +69,23 @@ async def upload_artifact(
         "yes" if thumb else "no",
     )
 
-    # Normal download / HD edited link:
-    # final link + file.
-    if (
-        artifact.source_url
-        and not artifact.skip_link
-    ):
-        await bot.send_message(
-            chat_id=source_message.chat.id,
-            text=f"<b>{artifact.source_url}</b>",
-            parse_mode="HTML",
-            link_preview_options={
-                "is_disabled": False,
-            },
-        )
+    should_send_link = False
 
-    # Multi-image Portrait / Poster / Cover:
-    # link sirf tab bhejna hai jab final URL original URL
-    # se different ho.
-    elif (
-        artifact.source_url
-        and artifact.original_url
-        and artifact.source_url != artifact.original_url
-    ):
+    if artifact.source_url:
+        # Normal download / HD edited URL.
+        if not artifact.skip_link:
+            should_send_link = True
+
+        # Multi-image:
+        # Same URL = no link.
+        # Changed final URL = link.
+        elif (
+            artifact.original_url
+            and artifact.source_url != artifact.original_url
+        ):
+            should_send_link = True
+
+    if should_send_link:
         await bot.send_message(
             chat_id=source_message.chat.id,
             text=f"<b>{artifact.source_url}</b>",
