@@ -67,6 +67,7 @@ async def execute_multi_image_request(
 
             # Download hua original filename caption mein aayega.
             artifact.caption = artifact.file_name
+            artifact.skip_link = True
 
             await upload_artifact(
                 bot=source_message.bot,
