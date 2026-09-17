@@ -192,7 +192,7 @@ async def intake_message(
 
     # Auto-pick format for direct downloads if user has a saved preference.
     if request_type == "direct_download" and len(options) > 1:
-        await preference = format_store.get(message.from_user.id)
+        preference = await format_store.get(message.from_user.id)
 
         if preference in ("document", "media"):
             wants_document = preference == "document"
