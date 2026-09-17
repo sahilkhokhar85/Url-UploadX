@@ -11,7 +11,13 @@ from services.cooldown import CooldownManager
 from services.caption_style_store import CaptionStyleStore
 from services.execution import execute_stored_request
 from services.format_preference_store import FormatPreferenceStore
-from services.parsing import extract_link_text, is_probable_youtube_url, parse_user_input
+from services.multi_image import execute_multi_image_request
+from services.parsing import (
+    extract_labeled_links,
+    extract_link_text,
+    is_probable_youtube_url,
+    parse_user_input,
+)
 from services.request_store import RequestStore
 from services.thumbnail_store import ThumbnailStore
 from services.ytdlp import (
@@ -24,6 +30,7 @@ from utils import text
 from utils.keyboards import format_keyboard
 from utils.logging_config import safe_url_label
 from utils.models import StoredRequest
+
 
 router = Router(name="intake")
 logger = logging.getLogger(__name__)
@@ -71,26 +78,21 @@ async def intake_message(
     if not message.from_user:
         return
 
-    if message.from_user.id not in settings.auth_users:
+    user_id = message.from_user.id
+
+    if user_id not in settings.auth_users:
         logger.info(
             "Blocked unauthorized user | user=%s chat=%s",
-            message.from_user.id,
+            user_id,
             message.chat.id,
         )
-        await message.answer("🚫 You're not authorized to use this bot.")
+        await message.answer(
+            "🚫 You're not authorized to use this bot."
+        )
         return
 
-    parsed = parse_user_input(raw_text, message.entities)
-
-    logger.info(
-        "Incoming link | user=%s chat=%s source=%s",
-        message.from_user.id,
-        message.chat.id,
-        safe_url_label(parsed.source_url),
-    )
-
     blocked_seconds = cooldown.check(
-        message.from_user.id,
+        user_id,
         settings.auth_users,
     )
 
@@ -99,14 +101,69 @@ async def intake_message(
 
         logger.info(
             "Cooldown blocked | user=%s remaining=%ss",
-            message.from_user.id,
+            user_id,
             blocked_seconds,
         )
 
-        await message.answer(text.RATE_LIMIT.format(minutes=minutes))
+        await message.answer(
+            text.RATE_LIMIT.format(minutes=minutes)
+        )
         return
 
-    status_message = await message.reply(text.PROCESSING)
+    # ---------------------------------------------------------
+    # Multiple labeled Telegram hyperlinks:
+    # Portrait, Zee5 Poster, App Cover, Logo
+    # ---------------------------------------------------------
+    labeled_result = extract_labeled_links(
+        raw_text,
+        message.entities,
+    )
+
+    if labeled_result:
+        links, title = labeled_result
+
+        logger.info(
+            "Incoming multi-image request | user=%s title=%s links=%s",
+            user_id,
+            title,
+            [label for label, _ in links],
+        )
+
+        status_message = await message.reply(
+            text.PROCESSING
+        )
+
+        await execute_multi_image_request(
+            status_message=status_message,
+            source_message=message,
+            user_id=user_id,
+            links=links,
+            title=title,
+            settings=settings,
+            request_store=request_store,
+            thumbnail_store=thumbnail_store,
+            caption_store=caption_store,
+        )
+        return
+
+    # ---------------------------------------------------------
+    # Existing single-link flow
+    # ---------------------------------------------------------
+    parsed = parse_user_input(
+        raw_text,
+        message.entities,
+    )
+
+    logger.info(
+        "Incoming link | user=%s chat=%s source=%s",
+        user_id,
+        message.chat.id,
+        safe_url_label(parsed.source_url),
+    )
+
+    status_message = await message.reply(
+        text.PROCESSING
+    )
 
     if is_probable_youtube_url(parsed.source_url):
         token = request_store.create_token()
@@ -122,7 +179,7 @@ async def intake_message(
 
         logger.info(
             "Prepared quick YouTube request | user=%s token=%s source=%s options=%s",
-            message.from_user.id,
+            user_id,
             token,
             safe_url_label(parsed.source_url),
             len(stored.options),
@@ -130,7 +187,10 @@ async def intake_message(
 
         await status_message.edit_text(
             text.QUICK_CHOICE,
-            reply_markup=format_keyboard(token, stored.options),
+            reply_markup=format_keyboard(
+                token,
+                stored.options,
+            ),
         )
         return
 
@@ -139,12 +199,15 @@ async def intake_message(
 
     if not is_direct_media_url(parsed.source_url):
         try:
-            info = await probe_url(parsed, settings)
+            info = await probe_url(
+                parsed,
+                settings,
+            )
 
-        except RuntimeError as exc:  # pragma: no cover
+        except RuntimeError as exc:
             logger.warning(
                 "yt-dlp probe failed | user=%s source=%s error=%s",
-                message.from_user.id,
+                user_id,
                 safe_url_label(parsed.source_url),
                 exc,
             )
@@ -163,11 +226,17 @@ async def intake_message(
         request_type = "ytdlp_selection"
 
         if not options:
-            options = build_direct_options(parsed, info=info)
+            options = build_direct_options(
+                parsed,
+                info=info,
+            )
             request_type = "direct_download"
 
     else:
-        options = build_direct_options(parsed, info=None)
+        options = build_direct_options(
+            parsed,
+            info=None,
+        )
         request_type = "direct_download"
 
     stored = StoredRequest(
@@ -182,7 +251,7 @@ async def intake_message(
 
     logger.info(
         "Prepared request | user=%s token=%s type=%s source=%s options=%s title=%s",
-        message.from_user.id,
+        user_id,
         token,
         request_type,
         safe_url_label(parsed.source_url),
@@ -190,18 +259,27 @@ async def intake_message(
         (info or {}).get("title", "-"),
     )
 
-    # Auto-pick format for direct downloads if user has a saved preference.
+    # Auto-pick format for direct downloads if user has saved preference.
     if request_type == "direct_download" and len(options) > 1:
-        preference = await format_store.get(message.from_user.id)
+        preference = await format_store.get(
+            user_id
+        )
 
-        if preference in ("document", "media"):
-            wants_document = preference == "document"
+        if preference in (
+            "document",
+            "media",
+        ):
+            wants_document = (
+                preference == "document"
+            )
 
             chosen = next(
                 (
                     opt
                     for opt in options
-                    if (opt.send_type == "document") == wants_document
+                    if (
+                        opt.send_type == "document"
+                    ) == wants_document
                 ),
                 options[0],
             )
@@ -209,7 +287,7 @@ async def intake_message(
             await execute_stored_request(
                 status_message=status_message,
                 source_message=message,
-                user_id=message.from_user.id,
+                user_id=user_id,
                 stored=stored,
                 option=chosen,
                 settings=settings,
@@ -221,5 +299,8 @@ async def intake_message(
 
     await status_message.edit_text(
         text.FORMAT_SELECTION,
-        reply_markup=format_keyboard(token, options),
+        reply_markup=format_keyboard(
+            token,
+            options,
+        ),
     )
