@@ -77,11 +77,12 @@ async def upload_artifact(
     # isliye yahan link send nahi hoga.
     if (
         artifact.source_url
-        and not artifact.skip_link
+        and artifact.original_url
+        and artifact.source_url != artifact.original_url
     ):
         await bot.send_message(
-            chat_id=source_message.chat.id,
-            text=f"<b>{artifact.source_url}</b>",
+    chat_id=source_message.chat.id,
+    text=f"<b>{artifact.source_url}</b>",
             parse_mode="HTML",
             link_preview_options={
                 "is_disabled": False,
