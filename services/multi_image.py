@@ -69,6 +69,10 @@ async def execute_multi_image_request(
             # Downloaded filename caption mein rahega.
             artifact.caption = artifact.file_name
 
+            # Portrait / Poster / Cover ke saath upload_artifact()
+            # automatically link send nahi karega.
+            artifact.skip_link = True
+
             await upload_artifact(
                 bot=source_message.bot,
                 status_message=status_message,
