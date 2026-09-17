@@ -35,14 +35,15 @@ async def execute_multi_image_request(
     try:
         caption_style = await caption_store.get(user_id)
 
-        for index, (label, url) in enumerate(links, start=1):
+        for index, (label, url) in enumerate(
+            links,
+            start=1,
+        ):
             await status_message.edit_text(
                 f"⬇️ Downloading <b>{label}</b> "
                 f"({index}/{len(links)})"
             )
 
-            # Original URL se jo filename milega,
-            # wahi use hoga. Label force nahi karna.
             parsed = ParsedInput(
                 source_url=url,
                 custom_file_name=None,
@@ -65,8 +66,11 @@ async def execute_multi_image_request(
                 suggested_ext="jpg",
             )
 
-            # Download hua original filename caption mein aayega.
+            # Downloaded filename caption mein rahega.
             artifact.caption = artifact.file_name
+
+            # Portrait / Poster / Cover ke saath upload_artifact()
+            # automatically link send nahi karega.
             artifact.skip_link = True
 
             await upload_artifact(
