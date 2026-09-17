@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import urlparse
 
 from aiogram.types import Message
 
@@ -16,6 +18,28 @@ from utils import text
 from utils.models import DownloadOption, StoredRequest
 
 logger = logging.getLogger(__name__)
+
+
+IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+}
+
+
+def is_jpg_request(stored: StoredRequest, option: DownloadOption) -> bool:
+    source_url = stored.parsed_input.source_url
+    url_ext = Path(urlparse(source_url).path).suffix.lower()
+
+    option_ext = f".{option.file_ext.lower().lstrip('.')}" if option.file_ext else ""
+
+    info_ext = stored.info.get("ext", "")
+    info_ext = f".{str(info_ext).lower().lstrip('.')}" if info_ext else ""
+
+    return (
+        url_ext in IMAGE_EXTENSIONS
+        or option_ext in IMAGE_EXTENSIONS
+        or info_ext in IMAGE_EXTENSIONS
+    )
 
 
 async def execute_stored_request(
@@ -34,7 +58,9 @@ async def execute_stored_request(
     work_dir = request_store.work_directory(stored.token)
 
     file_name = stored.parsed_input.custom_file_name or "downloaded-file"
+
     await status_message.edit_text(text.download_caption(file_name))
+
     logger.info(
         "Starting request action | user=%s token=%s type=%s option=%s send_type=%s",
         user_id,
@@ -54,6 +80,7 @@ async def execute_stored_request(
                 work_dir=work_dir,
                 suggested_ext=stored.info.get("ext"),
             )
+
         elif stored.request_type == "youtube_quick":
             artifact = await download_quick_youtube(
                 parsed_input=stored.parsed_input,
@@ -61,6 +88,7 @@ async def execute_stored_request(
                 settings=settings,
                 work_dir=work_dir,
             )
+
         else:
             artifact = await download_selected_format(
                 parsed_input=stored.parsed_input,
@@ -71,14 +99,34 @@ async def execute_stored_request(
             )
 
         file_size = artifact.path.stat().st_size if artifact.path.exists() else 0
+
         if file_size > 50 * 1024 * 1024:
             artifact.path.unlink(missing_ok=True)
+
             await status_message.edit_text(
-                f"⚠️ File too large ({file_size / (1024*1024):.1f} MB). "
+                f"⚠️ File too large ({file_size / (1024 * 1024):.1f} MB). "
                 "Telegram bots can only upload files up to 50 MB."
             )
             return
 
+        # JPG URL ka original link separate message mein bhejna.
+        # Telegram is URL ka link preview generate karega.
+        if is_jpg_request(stored, option):
+            original_url = stored.parsed_input.source_url
+
+            await source_message.answer(
+                original_url,
+                disable_web_page_preview=False,
+            )
+
+            logger.info(
+                "Sent original JPG URL preview | user=%s token=%s source=%s",
+                user_id,
+                stored.token,
+                original_url,
+            )
+
+        # Downloaded image/file separate message mein upload hogi.
         await upload_artifact(
             bot=source_message.bot,
             status_message=status_message,
@@ -88,6 +136,7 @@ async def execute_stored_request(
             started_at=started_at,
             caption_style=caption_store.get(user_id),
         )
+
         logger.info(
             "Completed request action | user=%s token=%s file=%s send_type=%s",
             user_id,
@@ -95,6 +144,7 @@ async def execute_stored_request(
             artifact.file_name,
             artifact.send_type,
         )
+
     except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception(
             "Request action failed | user=%s token=%s type=%s option=%s",
@@ -103,7 +153,15 @@ async def execute_stored_request(
             stored.request_type,
             option.option_id,
         )
-        await status_message.edit_text(f"{text.DOWNLOAD_FAILED}\n<code>{exc}</code>")
+
+        await status_message.edit_text(
+            f"{text.DOWNLOAD_FAILED}\n<code>{exc}</code>"
+        )
+
     finally:
         request_store.delete(stored.token)
-        logger.info("Cleaned request state | token=%s", stored.token)
+
+        logger.info(
+            "Cleaned request state | token=%s",
+            stored.token,
+        )
