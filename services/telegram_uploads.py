@@ -75,11 +75,7 @@ async def upload_artifact(
     # Portrait / Poster / Cover:
     # multi_image.py mein skip_link=True hoga,
     # isliye yahan link send nahi hoga.
-    if (
-        artifact.source_url
-        and artifact.original_url
-        and artifact.source_url != artifact.original_url
-    ):
+    if artifact.source_url and not artifact.skip_link:
         await bot.send_message(
     chat_id=source_message.chat.id,
     text=f"<b>{artifact.source_url}</b>",
