@@ -115,7 +115,7 @@ async def execute_stored_request(
             original_url = stored.parsed_input.source_url
 
             await source_message.answer(
-                original_url,
+                f"<b>{original_url}</b>",
                 disable_web_page_preview=False,
             )
 
