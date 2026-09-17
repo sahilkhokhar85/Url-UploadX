@@ -21,7 +21,9 @@ def _entity_text(
     text: str,
     entity: MessageEntity,
 ) -> str:
-    return text[entity.offset: entity.offset + entity.length].strip()
+    return text[
+        entity.offset: entity.offset + entity.length
+    ].strip()
 
 
 def extract_labeled_links(
@@ -33,15 +35,57 @@ def extract_labeled_links(
 
     found: dict[str, str] = {}
 
+    lines = text.splitlines()
+    line_ranges: list[tuple[int, int, str]] = []
+
+    current_offset = 0
+
+    for line in lines:
+        line_start = current_offset
+        line_end = current_offset + len(line)
+
+        line_ranges.append(
+            (line_start, line_end, line)
+        )
+
+        current_offset = line_end + 1
+
     for entity in entities:
-        if entity.type != "text_link" or not entity.url:
+        if entity.type != "text_link":
             continue
 
-        label_text = _entity_text(text, entity)
-        label_key = re.sub(r"\s+", " ", label_text.lower()).strip()
+        if not entity.url:
+            continue
 
-        if label_key in IMAGE_LABELS:
-            found[IMAGE_LABELS[label_key]] = entity.url.strip()
+        entity_start = entity.offset
+        matching_line: str | None = None
+
+        for line_start, line_end, line in line_ranges:
+            if line_start <= entity_start <= line_end:
+                matching_line = line
+                break
+
+        if not matching_line:
+            continue
+
+        if ":" not in matching_line:
+            continue
+
+        label_text = matching_line.split(
+            ":",
+            maxsplit=1,
+        )[0].strip()
+
+        label_key = " ".join(
+            label_text.lower().split()
+        )
+
+        normalized_label = IMAGE_LABELS.get(
+            label_key
+        )
+
+        if normalized_label:
+            found[normalized_label] = entity.url.strip()
 
     required_order = [
         "Portrait",
@@ -61,21 +105,24 @@ def extract_labeled_links(
 
     title = ""
 
-    for line in text.splitlines():
+    for line in lines:
         clean_line = line.strip()
 
         if not clean_line:
             continue
 
-        lowered = clean_line.lower()
+        if ":" in clean_line:
+            label_part = clean_line.split(
+                ":",
+                maxsplit=1,
+            )[0].strip().lower()
 
-        if any(
-            lowered.startswith(label.lower() + ":")
-            for label in required_order
+            if label_part in IMAGE_LABELS:
+                continue
+
+        if clean_line.startswith(
+            ("http://", "https://")
         ):
-            continue
-
-        if clean_line.startswith(("http://", "https://")):
             continue
 
         title = clean_line
@@ -110,19 +157,30 @@ def _extract_url(
     text: str,
     entities: list[MessageEntity] | None,
 ) -> str:
-    entity_url = extract_link_text(text, entities)
+    entity_url = extract_link_text(
+        text,
+        entities,
+    )
 
     if not entity_url:
-        raise ValueError("No URL found in the message")
+        raise ValueError(
+            "No URL found in the message"
+        )
 
     return entity_url.strip()
 
 
 def _normalize_url(url: str) -> str:
     parsed = urlparse(url)
-    hostname = (parsed.hostname or "").lower()
+    hostname = (
+        parsed.hostname or ""
+    ).lower()
 
-    if hostname.endswith("hotstar.com") and "/image/upload/" in url:
+    # Hotstar image links
+    if (
+        hostname.endswith("hotstar.com")
+        and "/image/upload/" in url
+    ):
         url = re.sub(
             r"/image/upload/[^/]+/sources/",
             "/image/upload/sources/",
@@ -136,7 +194,11 @@ def _normalize_url(url: str) -> str:
 
         return url
 
-    if hostname.endswith("zee5.com") and "/image/upload/" in url:
+    # Zee5 image links
+    if (
+        hostname.endswith("zee5.com")
+        and "/image/upload/" in url
+    ):
         url = re.sub(
             r"/image/upload/[^/]+/resources/",
             "/image/upload/resources/",
@@ -150,6 +212,7 @@ def _normalize_url(url: str) -> str:
 
         return url
 
+    # SonyLiv image links
     if hostname.endswith("sonyliv.com"):
         match = re.search(
             r"^(.*?\.jpg)",
@@ -162,13 +225,16 @@ def _normalize_url(url: str) -> str:
 
         return url
 
+    # Amazon image links
     if hostname == "m.media-amazon.com":
-        return re.sub(
+        url = re.sub(
             r"\._[\w,]+_\.jpg$",
             ".jpg",
             url,
             flags=re.IGNORECASE,
         )
+
+        return url
 
     return url
 
@@ -198,14 +264,14 @@ def parse_user_input(
             )
 
     if " * " in text:
-        url, file_name = [
-            part.strip()
-            for part in text.split(" * ", maxsplit=1)
-        ]
+        url, file_name = text.split(
+            " * ",
+            maxsplit=1,
+        )
 
         return ParsedInput(
-            source_url=_normalize_url(url),
-            custom_file_name=file_name,
+            source_url=_normalize_url(url.strip()),
+            custom_file_name=file_name.strip(),
         )
 
     return ParsedInput(
@@ -216,7 +282,9 @@ def parse_user_input(
 
 
 def is_probable_youtube_url(url: str) -> bool:
-    hostname = (urlparse(url).hostname or "").lower()
+    hostname = (
+        urlparse(url).hostname or ""
+    ).lower()
 
     return (
         hostname == "youtube.com"
