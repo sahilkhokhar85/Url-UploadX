@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from aiogram.types import Message
+from aiogram.types import LinkPreviewOptions, Message
 
 from config import Settings
 from services.caption_style_store import CaptionStyleStore
@@ -87,14 +87,15 @@ async def execute_multi_image_request(
 
             # Sirf modified URL hone par link bhejo.
             if download_url != original_url:
-                await source_message.bot.send_message(
-                    chat_id=source_message.chat.id,
-                    text=f"<b>{download_url}</b>",
-                    parse_mode="HTML",
-                    link_preview_options={
-                        "is_disabled": False,
-                    },
-                )
+               await source_message.bot.send_message(
+                     chat_id=source_message.chat.id,
+                     text=f"<b>{download_url}</b>",
+                     parse_mode="HTML",
+                     link_preview_options=LinkPreviewOptions(
+                        is_disabled=False,
+                        prefer_large_media=True,
+                     ),
+               )
 
             await upload_artifact(
                 bot=source_message.bot,
