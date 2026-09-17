@@ -69,6 +69,21 @@ async def upload_artifact(
         "yes" if thumb else "no",
     )
 
+    # Normal/HD download mein pehle final URL bhejo.
+    # Multi-image Portrait/Poster/Cover mein link skip hoga.
+    if (
+        artifact.source_url
+        and not artifact.skip_link
+    ):
+        await bot.send_message(
+            chat_id=source_message.chat.id,
+            text=f"<b>{artifact.source_url}</b>",
+            parse_mode="HTML",
+            link_preview_options={
+                "is_disabled": False,
+            },
+        )
+
     if artifact.send_type == "video":
         width, height, duration = video_metadata(
             artifact.path
@@ -166,23 +181,6 @@ async def upload_artifact(
             upload_seconds=upload_seconds,
         )
     )
-
-    # Normal/HD download mein pehle final URL bhejo.
-    # Multi-image Portrait/Poster/Cover mein link skip hoga.
-    if (
-        artifact.source_url
-        and not artifact.skip_link
-    ):
-        await bot.send_message(
-            chat_id=source_message.chat.id,
-            text=f"<b>{artifact.source_url}</b>",
-            parse_mode="HTML",
-            link_preview_options={
-                "is_disabled": False,
-            },
-        )
-
-    if artifact.send_type == "video":
 
     artifact.path.unlink(
         missing_ok=True
