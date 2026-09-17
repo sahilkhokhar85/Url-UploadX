@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 from __future__ import annotations
 
 import logging
