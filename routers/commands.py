@@ -70,7 +70,7 @@ async def setformat_command(
     if not _is_authorized(message, settings):
         await message.answer("🚫 You're not authorized to use this bot.")
         return
-    current = format_store.get(message.from_user.id)
+    current = await format_store.get(message.from_user.id)
     await message.answer(
         "Choose your default send format for direct links:",
         reply_markup=format_preference_keyboard(current),
@@ -85,9 +85,9 @@ async def format_callback(
         await query.answer()
         return
     if callback_data.value == "ask":
-        format_store.clear(query.from_user.id)
+        await format_store.clear(query.from_user.id)
     else:
-        format_store.set(query.from_user.id, callback_data.value)
+        await format_store.set(query.from_user.id, callback_data.value)
     await query.message.edit_reply_markup(
         reply_markup=format_preference_keyboard(callback_data.value)
     )
@@ -100,7 +100,7 @@ async def setcaption_command(
     if not _is_authorized(message, settings):
         await message.answer("🚫 You're not authorized to use this bot.")
         return
-    current = caption_store.get(message.from_user.id)
+    current = await caption_store.get(message.from_user.id)
     await message.answer(
         "Choose your caption style:",
         reply_markup=caption_style_keyboard(current),
@@ -114,7 +114,7 @@ async def caption_style_callback(
     if not query.message or not query.from_user:
         await query.answer()
         return
-    caption_store.set(query.from_user.id, callback_data.value)
+    await caption_store.set(query.from_user.id, callback_data.value)
     await query.message.edit_reply_markup(
         reply_markup=caption_style_keyboard(callback_data.value)
     )
