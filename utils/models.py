@@ -65,3 +65,5 @@ class DownloadArtifact:
     file_name: str
     send_type: str
     caption: str
+    source_url: str | None = None
+    skip_link: bool = False
