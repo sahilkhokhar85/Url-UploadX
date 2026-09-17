@@ -4,7 +4,7 @@ import logging
 import mimetypes
 import time
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import aiohttp
 from aiogram.types import Message
@@ -38,6 +38,27 @@ def _normalize_file_name(
         return file_name
 
     return f"{file_name}.{ext}"
+
+
+def _normalize_url(url: str) -> str:
+    """
+    URL comparison ke liye harmless formatting differences remove karta hai.
+    Query parameters aur actual path preserve rehte hain.
+    """
+    parsed = urlparse(url)
+
+    normalized_path = parsed.path.rstrip("/") or "/"
+
+    return urlunparse(
+        (
+            parsed.scheme.lower(),
+            parsed.netloc.lower(),
+            normalized_path,
+            parsed.params,
+            parsed.query,
+            "",
+        )
+    )
 
 
 def _progress_milestone(
@@ -115,16 +136,29 @@ async def download_direct_file(
         ) as response:
             response.raise_for_status()
 
-            # Actual URL after redirects.
+            # Redirect ke baad actual final URL.
             final_url = str(
                 response.url
+            )
+
+            original_url_normalized = _normalize_url(
+                original_url
+            )
+
+            final_url_normalized = _normalize_url(
+                final_url
+            )
+
+            url_changed = (
+                original_url_normalized
+                != final_url_normalized
             )
 
             logger.info(
                 "Direct download URL resolved | original=%s final=%s changed=%s",
                 safe_url_label(original_url),
                 safe_url_label(final_url),
-                final_url != original_url,
+                url_changed,
             )
 
             content_length = int(
