@@ -1,22 +1,41 @@
 from __future__ import annotations
 
-from pathlib import Path
+import asyncpg
 
 
 class CaptionStyleStore:
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.root.mkdir(parents=True, exist_ok=True)
+    def __init__(self, pool: asyncpg.Pool) -> None:
+        self.pool = pool
 
-    def _path(self, user_id: int) -> Path:
-        return self.root / f"{user_id}.txt"
+    async def init(self) -> None:
+        await self.pool.execute(
+            """
+            CREATE TABLE IF NOT EXISTS caption_styles (
+                user_id BIGINT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
+        )
 
-    def get(self, user_id: int) -> str | None:
-        path = self._path(user_id)
-        if not path.exists():
-            return None
-        value = path.read_text().strip()
+    async def get(self, user_id: int) -> str | None:
+        value = await self.pool.fetchval(
+            """
+            SELECT value
+            FROM caption_styles
+            WHERE user_id = $1
+            """,
+            user_id,
+        )
         return value or None
 
-    def set(self, user_id: int, value: str) -> None:
-        self._path(user_id).write_text(value)
+    async def set(self, user_id: int, value: str) -> None:
+        await self.pool.execute(
+            """
+            INSERT INTO caption_styles (user_id, value)
+            VALUES ($1, $2)
+            ON CONFLICT (user_id)
+            DO UPDATE SET value = EXCLUDED.value
+            """,
+            user_id,
+            value,
+        )
