@@ -13,6 +13,7 @@ from services.thumbnail_store import ThumbnailStore
 from services.telegram_uploads import upload_artifact
 from utils.models import DownloadOption, ParsedInput
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,17 +67,15 @@ async def execute_multi_image_request(
                 suggested_ext="jpg",
             )
 
+            # Downloaded filename caption mein rahega.
             artifact.caption = artifact.file_name
 
-            # Original URL ko preserve karo.
-            # telegram_uploads.py changed URL compare karega.
+            # Original URL preserve rahega.
             artifact.original_url = url
 
-            # Multi-image ka normal link upload_artifact()
-            # automatically nahi bhejega.
-            #
-            # Agar final URL original se different hua,
-            # telegram_uploads.py changed URL bhejega.
+            # Same URL hone par link nahi bhejna.
+            # Changed final URL hone par telegram_uploads.py
+            # automatically changed URL bhejega.
             artifact.skip_link = True
 
             await upload_artifact(
