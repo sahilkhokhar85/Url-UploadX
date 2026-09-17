@@ -1,4 +1,5 @@
 from __future__ import annotations
+from services.parsing import _normalize_url
 
 import logging
 from datetime import datetime
@@ -45,9 +46,12 @@ async def execute_multi_image_request(
                 f"({index}/{len(links)})"
             )
 
+            original_url = url
+            download_url = _normalize_url(original_url)
+
             parsed = ParsedInput(
-                source_url=url,
-                custom_file_name=None,
+            source_url=download_url,
+            custom_file_name=None,
             )
 
             option = DownloadOption(
@@ -70,27 +74,23 @@ async def execute_multi_image_request(
             # Filename caption mein rahega.
             artifact.caption = artifact.file_name
 
-            # Original URL save rahega.
-            artifact.original_url = url
+            # Original aur modified URL save rakho.
+            artifact.original_url = original_url
+            artifact.source_url = download_url
 
-            # Multi-image ke liye link upload_artifact()
-            # ke andar automatically nahi bhejna.
+            # Multi-image mein upload_artifact() link automatically nahi bhejega.
             artifact.skip_link = True
 
-            # Agar final URL original URL se different hai,
-            # toh changed URL image se pehle send hoga.
-            if (
-                artifact.source_url
-                and artifact.source_url != url
-            ):
-                await source_message.bot.send_message(
-                    chat_id=source_message.chat.id,
-                    text=f"<b>{artifact.source_url}</b>",
-                    parse_mode="HTML",
-                    link_preview_options={
-                        "is_disabled": False,
-                    },
-                )
+            # Sirf modified URL hone par link bhejo.
+            if download_url != original_url:
+               await source_message.bot.send_message(
+            chat_id=source_message.chat.id,
+                     text=f"<b>{download_url}</b>",
+                     parse_mode="HTML",
+                     link_preview_options={
+                         "is_disabled": False,
+                     },
+               )
 
             await upload_artifact(
                 bot=source_message.bot,
