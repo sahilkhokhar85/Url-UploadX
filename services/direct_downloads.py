@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 def _filename_from_url(url: str) -> str:
     parsed = urlparse(url)
     name = Path(parsed.path).name
+
     return name or "downloaded-file"
 
 
@@ -31,7 +32,9 @@ def _normalize_file_name(
     if not ext:
         return file_name
 
-    if file_name.lower().endswith(f".{ext.lower()}"):
+    if file_name.lower().endswith(
+        f".{ext.lower()}"
+    ):
         return file_name
 
     return f"{file_name}.{ext}"
@@ -44,11 +47,18 @@ def _progress_milestone(
     if not total:
         return None
 
-    milestone = int((downloaded / total) * 4) * 25
+    milestone = int(
+        (downloaded / total) * 4
+    ) * 25
 
     return (
         milestone
-        if milestone in {25, 50, 75, 100}
+        if milestone in {
+            25,
+            50,
+            75,
+            100,
+        }
         else None
     )
 
@@ -92,6 +102,8 @@ async def download_direct_file(
             ssl=False
         )
 
+    final_url = original_url
+
     async with aiohttp.ClientSession(
         timeout=timeout,
         connector=connector,
@@ -99,8 +111,21 @@ async def download_direct_file(
         async with session.get(
             original_url,
             proxy=settings.http_proxy or None,
+            allow_redirects=True,
         ) as response:
             response.raise_for_status()
+
+            # Actual URL after redirects.
+            final_url = str(
+                response.url
+            )
+
+            logger.info(
+                "Direct download URL resolved | original=%s final=%s changed=%s",
+                safe_url_label(original_url),
+                safe_url_label(final_url),
+                final_url != original_url,
+            )
 
             content_length = int(
                 response.headers.get(
@@ -179,7 +204,9 @@ async def download_direct_file(
                         milestone
                         and milestone not in logged_milestones
                     ):
-                        logged_milestones.add(milestone)
+                        logged_milestones.add(
+                            milestone
+                        )
 
                         logger.info(
                             "Direct download progress | file=%s progress=%s%% downloaded=%s total=%s",
@@ -227,5 +254,6 @@ async def download_direct_file(
         file_name=file_name,
         send_type=option.send_type,
         caption=caption,
-        source_url=original_url,
+        source_url=final_url,
+        original_url=original_url,
     )
