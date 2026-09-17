@@ -69,23 +69,12 @@ async def upload_artifact(
         "yes" if thumb else "no",
     )
 
-    should_send_link = False
-
-    if artifact.source_url:
-        # Normal download / HD edited URL.
-        if not artifact.skip_link:
-            should_send_link = True
-
-        # Multi-image:
-        # Same URL = no link.
-        # Changed final URL = link.
-        elif (
-            artifact.original_url
-            and artifact.source_url != artifact.original_url
-        ):
-            should_send_link = True
-
-    if should_send_link:
+    # Normal URL download / HD edited URL:
+    # link + file.
+    #
+    # Multi-image:
+    # changed link multi_image.py mein manually send hota hai.
+    if artifact.source_url and not artifact.skip_link:
         await bot.send_message(
             chat_id=source_message.chat.id,
             text=f"<b>{artifact.source_url}</b>",
