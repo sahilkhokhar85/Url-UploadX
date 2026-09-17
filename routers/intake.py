@@ -1,7 +1,7 @@
-from urllib.parse import urlparse
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlparse
 
 from aiogram import F, Router
 from aiogram.types import Message
@@ -29,6 +29,30 @@ router = Router(name="intake")
 logger = logging.getLogger(__name__)
 
 
+def is_direct_media_url(url: str) -> bool:
+    path = urlparse(url).path.lower()
+
+    return path.endswith(
+        (
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif",
+            ".mp4",
+            ".mkv",
+            ".webm",
+            ".mov",
+            ".mp3",
+            ".m4a",
+            ".wav",
+            ".flac",
+            ".opus",
+            ".weba",
+        )
+    )
+
+
 @router.message(F.chat.type == "private", F.text)
 async def intake_message(
     message: Message,
@@ -40,6 +64,7 @@ async def intake_message(
     caption_store: CaptionStyleStore,
 ) -> None:
     raw_text = message.text or ""
+
     if not extract_link_text(raw_text, message.entities):
         return
 
@@ -55,36 +80,46 @@ async def intake_message(
         await message.answer("🚫 You're not authorized to use this bot.")
         return
 
+    parsed = parse_user_input(raw_text, message.entities)
+
     logger.info(
         "Incoming link | user=%s chat=%s source=%s",
         message.from_user.id,
         message.chat.id,
-        safe_url_label(parse_user_input(raw_text, message.entities).source_url),
+        safe_url_label(parsed.source_url),
     )
 
-    blocked_seconds = cooldown.check(message.from_user.id, settings.auth_users)
+    blocked_seconds = cooldown.check(
+        message.from_user.id,
+        settings.auth_users,
+    )
+
     if blocked_seconds:
         minutes = max(1, round(blocked_seconds / 60))
+
         logger.info(
             "Cooldown blocked | user=%s remaining=%ss",
             message.from_user.id,
             blocked_seconds,
         )
+
         await message.answer(text.RATE_LIMIT.format(minutes=minutes))
         return
 
-    parsed = parse_user_input(raw_text, message.entities)
     status_message = await message.reply(text.PROCESSING)
 
     if is_probable_youtube_url(parsed.source_url):
         token = request_store.create_token()
+
         stored = StoredRequest(
             token=token,
             request_type="youtube_quick",
             parsed_input=parsed,
             options=build_quick_youtube_options(),
         )
+
         request_store.save(stored)
+
         logger.info(
             "Prepared quick YouTube request | user=%s token=%s source=%s options=%s",
             message.from_user.id,
@@ -92,30 +127,45 @@ async def intake_message(
             safe_url_label(parsed.source_url),
             len(stored.options),
         )
+
         await status_message.edit_text(
             text.QUICK_CHOICE,
             reply_markup=format_keyboard(token, stored.options),
         )
         return
 
-    try:
-        info = await probe_url(parsed, settings)
-    except RuntimeError as exc:  # pragma: no cover - network/tool error path
-        logger.warning(
-            "yt-dlp probe failed | user=%s source=%s error=%s",
-            message.from_user.id,
+    # Direct media links do not need yt-dlp probing.
+    info = None
+
+    if not is_direct_media_url(parsed.source_url):
+        try:
+            info = await probe_url(parsed, settings)
+
+        except RuntimeError as exc:  # pragma: no cover
+            logger.warning(
+                "yt-dlp probe failed | user=%s source=%s error=%s",
+                message.from_user.id,
+                safe_url_label(parsed.source_url),
+                exc,
+            )
+            info = None
+
+    else:
+        logger.info(
+            "Skipping yt-dlp probe for direct media URL | source=%s",
             safe_url_label(parsed.source_url),
-            exc,
         )
-        info = None
 
     token = request_store.create_token()
+
     if info:
         options = build_ytdlp_options(info)
         request_type = "ytdlp_selection"
+
         if not options:
             options = build_direct_options(parsed, info=info)
             request_type = "direct_download"
+
     else:
         options = build_direct_options(parsed, info=None)
         request_type = "direct_download"
@@ -127,7 +177,9 @@ async def intake_message(
         options=options,
         info=info or {},
     )
+
     request_store.save(stored)
+
     logger.info(
         "Prepared request | user=%s token=%s type=%s source=%s options=%s title=%s",
         message.from_user.id,
@@ -138,15 +190,22 @@ async def intake_message(
         (info or {}).get("title", "-"),
     )
 
-    # Auto-pick format for direct downloads if user has a saved preference
+    # Auto-pick format for direct downloads if user has a saved preference.
     if request_type == "direct_download" and len(options) > 1:
         preference = format_store.get(message.from_user.id)
+
         if preference in ("document", "media"):
             wants_document = preference == "document"
+
             chosen = next(
-                (opt for opt in options if (opt.send_type == "document") == wants_document),
+                (
+                    opt
+                    for opt in options
+                    if (opt.send_type == "document") == wants_document
+                ),
                 options[0],
             )
+
             await execute_stored_request(
                 status_message=status_message,
                 source_message=message,
