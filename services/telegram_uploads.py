@@ -69,9 +69,12 @@ async def upload_artifact(
         "yes" if thumb else "no",
     )
 
-    # Normal download / HD edited link mein final URL bhejna hai.
-    # Portrait / Poster / Cover mein artifact.skip_link=True hoga,
-    # isliye un cases mein link send nahi hoga.
+    # Normal download / HD edited link:
+    # final link + file.
+    #
+    # Portrait / Poster / Cover:
+    # multi_image.py mein skip_link=True hoga,
+    # isliye yahan link send nahi hoga.
     if (
         artifact.source_url
         and not artifact.skip_link
