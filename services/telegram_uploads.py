@@ -51,7 +51,8 @@ async def upload_artifact(
     if artifact.send_type == "video":
         width, height, duration = video_metadata(artifact.path)
         async with ChatActionSender.upload_video(bot=bot, chat_id=source_message.chat.id):
-            await source_message.reply_video(
+            await bot.send_video(
+                chat_id=source_message.chat.id,
                 video=file_input,
                 caption=caption,
                 duration=duration,
@@ -63,7 +64,8 @@ async def upload_artifact(
     elif artifact.send_type == "audio":
         duration = audio_duration(artifact.path)
         async with ChatActionSender.upload_document(bot=bot, chat_id=source_message.chat.id):
-            await source_message.reply_audio(
+            await bot.send_audio(
+                chat_id=source_message.chat.id,
                 audio=file_input,
                 caption=caption,
                 duration=duration,
@@ -72,7 +74,8 @@ async def upload_artifact(
             )
     elif artifact.send_type == "photo":
         async with ChatActionSender.upload_photo(bot=bot, chat_id=source_message.chat.id):
-            await source_message.reply_photo(
+            await bot.send_photo(
+                chat_id=source_message.chat.id,
                 photo=file_input,
                 caption=caption,
             )
@@ -89,7 +92,8 @@ async def upload_artifact(
             )
     else:
         async with ChatActionSender.upload_document(bot=bot, chat_id=source_message.chat.id):
-            await source_message.reply_document(
+            await bot.send_document(
+                chat_id=source_message.chat.id,
                 document=file_input,
                 caption=caption,
                 thumbnail=thumb,
