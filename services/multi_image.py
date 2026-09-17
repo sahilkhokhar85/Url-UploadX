@@ -41,11 +41,11 @@ async def execute_multi_image_request(
                 f"({index}/{len(links)})"
             )
 
-            # Filename/caption ke liye title nahi,
-            # current image ka label use hoga.
+            # Original URL se jo filename milega,
+            # wahi use hoga. Label force nahi karna.
             parsed = ParsedInput(
                 source_url=url,
-                custom_file_name=label,
+                custom_file_name=None,
             )
 
             option = DownloadOption(
@@ -65,7 +65,7 @@ async def execute_multi_image_request(
                 suggested_ext="jpg",
             )
 
-            # Caption mein title nahi, actual file name aayega.
+            # Download hua original filename caption mein aayega.
             artifact.caption = artifact.file_name
 
             await upload_artifact(
