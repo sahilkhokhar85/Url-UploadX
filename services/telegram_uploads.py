@@ -8,7 +8,11 @@ from aiogram import Bot
 from aiogram.types import FSInputFile, Message
 from aiogram.utils.chat_action import ChatActionSender
 
-from services.media import audio_duration, video_metadata, video_note_metadata
+from services.media import (
+    audio_duration,
+    video_metadata,
+    video_note_metadata,
+)
 from utils import text
 from utils.caption_style import apply_caption_style
 from utils.models import DownloadArtifact
@@ -17,9 +21,12 @@ from utils.models import DownloadArtifact
 logger = logging.getLogger(__name__)
 
 
-def _thumb_file(path: str | None) -> FSInputFile | None:
+def _thumb_file(
+    path: str | None,
+) -> FSInputFile | None:
     if path and os.path.isfile(path):
         return FSInputFile(path)
+
     return None
 
 
@@ -33,24 +40,44 @@ async def upload_artifact(
     started_at: datetime,
     caption_style: str | None = None,
 ) -> None:
-    await status_message.edit_text(text.upload_caption(artifact.file_name))
+    await status_message.edit_text(
+        text.upload_caption(artifact.file_name)
+    )
+
     thumb = _thumb_file(thumbnail_path)
     file_input = FSInputFile(artifact.path)
-    caption = apply_caption_style(artifact.caption, caption_style)
-    download_seconds = int((datetime.now() - started_at).total_seconds())
+
+    caption = apply_caption_style(
+        artifact.caption,
+        caption_style,
+    )
+
+    download_seconds = int(
+        (datetime.now() - started_at).total_seconds()
+    )
+
     upload_started = datetime.now()
+
     logger.info(
         "Upload starting | chat=%s file=%s send_type=%s size=%s thumbnail=%s",
         source_message.chat.id,
         artifact.file_name,
         artifact.send_type,
-        artifact.path.stat().st_size if artifact.path.exists() else 0,
+        artifact.path.stat().st_size
+        if artifact.path.exists()
+        else 0,
         "yes" if thumb else "no",
     )
 
     if artifact.send_type == "video":
-        width, height, duration = video_metadata(artifact.path)
-        async with ChatActionSender.upload_video(bot=bot, chat_id=source_message.chat.id):
+        width, height, duration = video_metadata(
+            artifact.path
+        )
+
+        async with ChatActionSender.upload_video(
+            bot=bot,
+            chat_id=source_message.chat.id,
+        ):
             await bot.send_video(
                 chat_id=source_message.chat.id,
                 video=file_input,
@@ -61,9 +88,16 @@ async def upload_artifact(
                 supports_streaming=True,
                 thumbnail=thumb,
             )
+
     elif artifact.send_type == "audio":
-        duration = audio_duration(artifact.path)
-        async with ChatActionSender.upload_document(bot=bot, chat_id=source_message.chat.id):
+        duration = audio_duration(
+            artifact.path
+        )
+
+        async with ChatActionSender.upload_document(
+            bot=bot,
+            chat_id=source_message.chat.id,
+        ):
             await bot.send_audio(
                 chat_id=source_message.chat.id,
                 audio=file_input,
@@ -72,26 +106,40 @@ async def upload_artifact(
                 thumbnail=thumb,
                 title=artifact.file_name,
             )
+
     elif artifact.send_type == "photo":
-        async with ChatActionSender.upload_photo(bot=bot, chat_id=source_message.chat.id):
+        async with ChatActionSender.upload_photo(
+            bot=bot,
+            chat_id=source_message.chat.id,
+        ):
             await bot.send_photo(
                 chat_id=source_message.chat.id,
                 photo=file_input,
                 caption=caption,
             )
+
     elif artifact.send_type == "video_note":
-        length, duration = video_note_metadata(artifact.path)
+        length, duration = video_note_metadata(
+            artifact.path
+        )
+
         async with ChatActionSender.upload_video_note(
-            bot=bot, chat_id=source_message.chat.id
+            bot=bot,
+            chat_id=source_message.chat.id,
         ):
-            await source_message.reply_video_note(
+            await bot.send_video_note(
+                chat_id=source_message.chat.id,
                 video_note=file_input,
                 duration=duration,
                 length=length or 240,
                 thumbnail=thumb,
             )
+
     else:
-        async with ChatActionSender.upload_document(bot=bot, chat_id=source_message.chat.id):
+        async with ChatActionSender.upload_document(
+            bot=bot,
+            chat_id=source_message.chat.id,
+        ):
             await bot.send_document(
                 chat_id=source_message.chat.id,
                 document=file_input,
@@ -99,7 +147,10 @@ async def upload_artifact(
                 thumbnail=thumb,
             )
 
-    upload_seconds = int((datetime.now() - upload_started).total_seconds())
+    upload_seconds = int(
+        (datetime.now() - upload_started).total_seconds()
+    )
+
     logger.info(
         "Upload complete | chat=%s file=%s send_type=%s download_seconds=%s upload_seconds=%s",
         source_message.chat.id,
@@ -108,10 +159,29 @@ async def upload_artifact(
         download_seconds,
         upload_seconds,
     )
+
     await status_message.edit_text(
         text.DONE.format(
             download_seconds=download_seconds,
             upload_seconds=upload_seconds,
         )
     )
-    artifact.path.unlink(missing_ok=True)
+
+    # Multi-image case mein link skip hoga.
+    # Normal/HD download mein final URL bold + preview ke saath aayega.
+    if (
+        artifact.source_url
+        and not artifact.skip_link
+    ):
+        await bot.send_message(
+            chat_id=source_message.chat.id,
+            text=f"<b>{artifact.source_url}</b>",
+            parse_mode="HTML",
+            link_preview_options={
+                "is_disabled": False,
+            },
+        )
+
+    artifact.path.unlink(
+        missing_ok=True
+    )
