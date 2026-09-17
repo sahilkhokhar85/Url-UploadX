@@ -167,8 +167,8 @@ async def upload_artifact(
         )
     )
 
-    # Multi-image case mein link skip hoga.
-    # Normal/HD download mein final URL bold + preview ke saath aayega.
+    # Normal/HD download mein pehle final URL bhejo.
+    # Multi-image Portrait/Poster/Cover mein link skip hoga.
     if (
         artifact.source_url
         and not artifact.skip_link
@@ -181,6 +181,8 @@ async def upload_artifact(
                 "is_disabled": False,
             },
         )
+
+    if artifact.send_type == "video":
 
     artifact.path.unlink(
         missing_ok=True
