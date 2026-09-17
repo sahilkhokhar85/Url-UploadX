@@ -66,11 +66,17 @@ async def execute_multi_image_request(
                 suggested_ext="jpg",
             )
 
-            # Downloaded filename caption mein rahega.
             artifact.caption = artifact.file_name
 
-            # Portrait / Poster / Cover ke saath upload_artifact()
-            # automatically link send nahi karega.
+            # Original URL ko preserve karo.
+            # telegram_uploads.py changed URL compare karega.
+            artifact.original_url = url
+
+            # Multi-image ka normal link upload_artifact()
+            # automatically nahi bhejega.
+            #
+            # Agar final URL original se different hua,
+            # telegram_uploads.py changed URL bhejega.
             artifact.skip_link = True
 
             await upload_artifact(
