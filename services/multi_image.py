@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from pathlib import Path
 
 from aiogram.types import Message
 
@@ -12,7 +11,7 @@ from services.direct_downloads import download_direct_file
 from services.request_store import RequestStore
 from services.thumbnail_store import ThumbnailStore
 from services.telegram_uploads import upload_artifact
-from utils.models import ParsedInput, DownloadOption
+from utils.models import DownloadOption, ParsedInput
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ async def execute_multi_image_request(
 
         for index, (label, url) in enumerate(links, start=1):
             await status_message.edit_text(
-                f"Downloading <b>{label}</b> "
+                f"⬇️ Downloading <b>{label}</b> "
                 f"({index}/{len(links)})"
             )
 
@@ -76,7 +75,9 @@ async def execute_multi_image_request(
                 caption_style=caption_style,
             )
 
-        await status_message.edit_text("✅ All images uploaded successfully.")
+        await status_message.edit_text(
+            "✅ All images uploaded successfully."
+        )
 
     except Exception as exc:
         logger.exception(
@@ -84,6 +85,7 @@ async def execute_multi_image_request(
             user_id,
             exc,
         )
+
         await status_message.edit_text(
             f"❌ Upload failed\n<code>{exc}</code>"
         )
