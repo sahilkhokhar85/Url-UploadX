@@ -8,131 +8,6 @@ from aiogram.types import MessageEntity
 from utils.models import ParsedInput
 
 
-IMAGE_LABELS = {
-    "portrait": "Portrait",
-    "zee5 poster": "Zee5 Poster",
-    "zee5": "Zee5 Poster",
-    "app cover": "App Cover",
-    "logo": "Logo",
-}
-
-
-def _entity_text(
-    text: str,
-    entity: MessageEntity,
-) -> str:
-    return text[
-        entity.offset: entity.offset + entity.length
-    ].strip()
-
-
-def extract_labeled_links(
-    text: str,
-    entities: list[MessageEntity] | None,
-) -> tuple[list[tuple[str, str]], str] | None:
-    if not entities:
-        return None
-
-    found: dict[str, str] = {}
-
-    lines = text.splitlines()
-    line_ranges: list[tuple[int, int, str]] = []
-
-    current_offset = 0
-
-    for line in lines:
-        line_start = current_offset
-        line_end = current_offset + len(line)
-
-        line_ranges.append(
-            (line_start, line_end, line)
-        )
-
-        current_offset = line_end + 1
-
-    for entity in entities:
-        if entity.type != "text_link":
-            continue
-
-        if not entity.url:
-            continue
-
-        entity_start = entity.offset
-        matching_line: str | None = None
-
-        for line_start, line_end, line in line_ranges:
-            if line_start <= entity_start <= line_end:
-                matching_line = line
-                break
-
-        if not matching_line:
-            continue
-
-        if ":" not in matching_line:
-            continue
-
-        label_text = matching_line.split(
-            ":",
-            maxsplit=1,
-        )[0].strip()
-
-        label_key = " ".join(
-            label_text.lower().split()
-        )
-
-        normalized_label = IMAGE_LABELS.get(
-            label_key
-        )
-
-        if normalized_label:
-            found[normalized_label] = entity.url.strip()
-
-    required_order = [
-        "Portrait",
-        "Zee5 Poster",
-        "App Cover",
-        "Logo",
-    ]
-
-    links = [
-        (label, found[label])
-        for label in required_order
-        if label in found
-    ]
-
-    if not links:
-        return None
-
-    title = ""
-
-    for line in lines:
-        clean_line = line.strip()
-
-        if not clean_line:
-            continue
-
-        if ":" in clean_line:
-            label_part = clean_line.split(
-                ":",
-                maxsplit=1,
-            )[0].strip().lower()
-
-            if label_part in IMAGE_LABELS:
-                continue
-
-        if clean_line.startswith(
-            ("http://", "https://")
-        ):
-            continue
-
-        title = clean_line
-
-    if not title:
-        title = "Downloaded Images"
-
-    return links, title
-
-
 def extract_link_text(
     text: str,
     entities: list[MessageEntity] | None,
@@ -144,7 +19,7 @@ def extract_link_text(
 
             if entity.type == "url":
                 return text[
-                    entity.offset: entity.offset + entity.length
+                    entity.offset : entity.offset + entity.length
                 ]
 
     if "http://" in text or "https://" in text:
@@ -157,30 +32,20 @@ def _extract_url(
     text: str,
     entities: list[MessageEntity] | None,
 ) -> str:
-    entity_url = extract_link_text(
-        text,
-        entities,
-    )
+    entity_url = extract_link_text(text, entities)
 
     if not entity_url:
-        raise ValueError(
-            "No URL found in the message"
-        )
+        raise ValueError("No URL found in the message")
 
     return entity_url.strip()
 
 
 def _normalize_url(url: str) -> str:
     parsed = urlparse(url)
-    hostname = (
-        parsed.hostname or ""
-    ).lower()
+    hostname = (parsed.hostname or "").lower()
 
     # Hotstar image links
-    if (
-        hostname.endswith("hotstar.com")
-        and "/image/upload/" in url
-    ):
+    if hostname.endswith("hotstar.com") and "/image/upload/" in url:
         url = re.sub(
             r"/image/upload/[^/]+/sources/",
             "/image/upload/sources/",
@@ -195,10 +60,7 @@ def _normalize_url(url: str) -> str:
         return url
 
     # Zee5 image links
-    if (
-        hostname.endswith("zee5.com")
-        and "/image/upload/" in url
-    ):
+    if hostname.endswith("zee5.com") and "/image/upload/" in url:
         url = re.sub(
             r"/image/upload/[^/]+/resources/",
             "/image/upload/resources/",
@@ -212,7 +74,7 @@ def _normalize_url(url: str) -> str:
 
         return url
 
-    # SonyLiv image links
+    # SonyLIV image links
     if hostname.endswith("sonyliv.com"):
         match = re.search(
             r"^(.*?\.jpg)",
@@ -225,7 +87,7 @@ def _normalize_url(url: str) -> str:
 
         return url
 
-    # Amazon image links
+    # Prime Video / Amazon image links
     if hostname == "m.media-amazon.com":
         url = re.sub(
             r"\._[\w,]+_\.jpg$",
@@ -237,6 +99,156 @@ def _normalize_url(url: str) -> str:
         return url
 
     return url
+
+
+def get_image_label(label_text: str) -> str | None:
+    """
+    Label detection:
+
+    Portrait              -> Portrait
+    Zee5 Poster           -> Poster
+    Netflix Poster        -> Poster
+    SonyLIV Poster        -> Poster
+
+    Cover                 -> Cover
+    App Cover             -> Cover
+    Netflix Cover         -> Cover
+    Zee5 Cover            -> Cover
+
+    Logo                  -> ignored
+    """
+
+    label = label_text.strip().lower()
+
+    # Sirf Portrait word detect
+    if "portrait" in label:
+        return "Portrait"
+
+    # OTT naam ignore karke sirf Poster word detect
+    if "poster" in label:
+        return "Poster"
+
+    # App ho ya na ho, sirf Cover word detect
+    if "cover" in label:
+        return "Cover"
+
+    # Logo aur unknown labels ignore
+    return None
+
+
+def extract_labeled_links(
+    text: str,
+    entities: list[MessageEntity] | None,
+) -> tuple[list[tuple[str, str]], str] | None:
+    """
+    Example input:
+
+    Zee5 Poster: Link
+    Portrait: Link
+    App Cover: Link
+    Logo: Link
+
+    Returns:
+
+    [
+        ("Portrait", "portrait_url"),
+        ("Poster", "poster_url"),
+        ("Cover", "cover_url"),
+    ]
+    """
+
+    if not text or not entities:
+        return None
+
+    lines = text.splitlines()
+
+    # Har line ka character offset range
+    line_ranges: list[tuple[int, int, str]] = []
+    current_offset = 0
+
+    for line in lines:
+        line_start = current_offset
+        line_end = current_offset + len(line)
+
+        line_ranges.append(
+            (
+                line_start,
+                line_end,
+                line,
+            )
+        )
+
+        current_offset = line_end + 1
+
+    found_links: dict[str, str] = {}
+
+    for entity in entities:
+        entity_url: str | None = None
+
+        if entity.type == "text_link" and entity.url:
+            entity_url = entity.url
+
+        elif entity.type == "url":
+            entity_url = text[
+                entity.offset : entity.offset + entity.length
+            ]
+
+        if not entity_url:
+            continue
+
+        matching_line: str | None = None
+
+        for line_start, line_end, line_text in line_ranges:
+            if line_start <= entity.offset <= line_end:
+                matching_line = line_text
+                break
+
+        if not matching_line:
+            continue
+
+        # Link se pehle ka text label hoga
+        label_text = matching_line.split(
+            ":",
+            1,
+        )[0].strip()
+
+        image_label = get_image_label(label_text)
+
+        # Logo / unknown label ignore
+        if not image_label:
+            continue
+
+        found_links[image_label] = _normalize_url(
+            entity_url.strip()
+        )
+
+    if not found_links:
+        return None
+
+    # Processing order
+    required_order = [
+        "Portrait",
+        "Poster",
+        "Cover",
+    ]
+
+    ordered_links: list[tuple[str, str]] = []
+
+    for label in required_order:
+        if label in found_links:
+            ordered_links.append(
+                (
+                    label,
+                    found_links[label],
+                )
+            )
+
+    if not ordered_links:
+        return None
+
+    # Title intentionally return nahi karna.
+    # Multi-image caption file name se banega.
+    return ordered_links, ""
 
 
 def parse_user_input(
@@ -264,14 +276,17 @@ def parse_user_input(
             )
 
     if " * " in text:
-        url, file_name = text.split(
-            " * ",
-            maxsplit=1,
-        )
+        url, file_name = [
+            part.strip()
+            for part in text.split(
+                " * ",
+                maxsplit=1,
+            )
+        ]
 
         return ParsedInput(
-            source_url=_normalize_url(url.strip()),
-            custom_file_name=file_name.strip(),
+            source_url=_normalize_url(url),
+            custom_file_name=file_name,
         )
 
     return ParsedInput(
