@@ -218,9 +218,11 @@ def extract_labeled_links(
         if not image_label:
             continue
 
-        found_links[image_label] = _normalize_url(
-            entity_url.strip()
-        )
+        # IMPORTANT:
+        # Yahan original URL save hoga.
+        # Normalization multi_image.py mein hogi,
+        # taaki original aur modified URL compare ho sake.
+        found_links[image_label] = entity_url.strip()
 
     if not found_links:
         return None
