@@ -30,10 +30,18 @@ def is_jpg_request(stored: StoredRequest, option: DownloadOption) -> bool:
     source_url = stored.parsed_input.source_url
     url_ext = Path(urlparse(source_url).path).suffix.lower()
 
-    option_ext = f".{option.file_ext.lower().lstrip('.')}" if option.file_ext else ""
+    option_ext = (
+        f".{option.file_ext.lower().lstrip('.')}"
+        if option.file_ext
+        else ""
+    )
 
     info_ext = stored.info.get("ext", "")
-    info_ext = f".{str(info_ext).lower().lstrip('.')}" if info_ext else ""
+    info_ext = (
+        f".{str(info_ext).lower().lstrip('.')}"
+        if info_ext
+        else ""
+    )
 
     return (
         url_ext in IMAGE_EXTENSIONS
@@ -57,9 +65,14 @@ async def execute_stored_request(
     started_at = datetime.now()
     work_dir = request_store.work_directory(stored.token)
 
-    file_name = stored.parsed_input.custom_file_name or "downloaded-file"
+    file_name = (
+        stored.parsed_input.custom_file_name
+        or "downloaded-file"
+    )
 
-    await status_message.edit_text(text.download_caption(file_name))
+    await status_message.edit_text(
+        text.download_caption(file_name)
+    )
 
     logger.info(
         "Starting request action | user=%s token=%s type=%s option=%s send_type=%s",
@@ -98,35 +111,27 @@ async def execute_stored_request(
                 work_dir=work_dir,
             )
 
-        file_size = artifact.path.stat().st_size if artifact.path.exists() else 0
+        file_size = (
+            artifact.path.stat().st_size
+            if artifact.path.exists()
+            else 0
+        )
 
         if file_size > 50 * 1024 * 1024:
             artifact.path.unlink(missing_ok=True)
 
             await status_message.edit_text(
-                f"⚠️ File too large ({file_size / (1024 * 1024):.1f} MB). "
+                f"⚠️ File too large "
+                f"({file_size / (1024 * 1024):.1f} MB).\n"
                 "Telegram bots can only upload files up to 50 MB."
             )
             return
 
-        # JPG URL ka original link separate message mein bhejna.
-        # Telegram is URL ka link preview generate karega.
-        if is_jpg_request(stored, option):
-            original_url = stored.parsed_input.source_url
+        # Original image URL/link yahan se remove kar diya gaya hai.
+        # Ab sirf downloaded image/file upload hogi.
 
-            await source_message.answer(
-                f"<b>{original_url}</b>",
-                disable_web_page_preview=False,
-            )
+        caption_style = await caption_store.get(user_id)
 
-            logger.info(
-                "Sent original JPG URL preview | user=%s token=%s source=%s",
-                user_id,
-                stored.token,
-                original_url,
-            )
-
-        # Downloaded image/file separate message mein upload hogi.
         await upload_artifact(
             bot=source_message.bot,
             status_message=status_message,
@@ -134,7 +139,7 @@ async def execute_stored_request(
             artifact=artifact,
             thumbnail_path=thumbnail_store.get(user_id),
             started_at=started_at,
-            caption_style=caption_store.get(user_id),
+            caption_style=caption_style,
         )
 
         logger.info(
