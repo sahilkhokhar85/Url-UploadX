@@ -46,7 +46,10 @@ async def execute_multi_image_request(
                 f"({index}/{len(links)})"
             )
 
+            # Original URL ko preserve karo.
             original_url = url
+
+            # Existing repo normalization yahan apply hogi.
             download_url = _normalize_url(original_url)
 
             parsed = ParsedInput(
@@ -78,7 +81,8 @@ async def execute_multi_image_request(
             artifact.original_url = original_url
             artifact.source_url = download_url
 
-            # Multi-image mein upload_artifact() link automatically nahi bhejega.
+            # Multi-image mein upload_artifact()
+            # automatically link nahi bhejega.
             artifact.skip_link = True
 
             # Sirf modified URL hone par link bhejo.
