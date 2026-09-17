@@ -84,13 +84,13 @@ async def execute_multi_image_request(
             # Sirf modified URL hone par link bhejo.
             if download_url != original_url:
                 await source_message.bot.send_message(
-            chat_id=source_message.chat.id,
+                    chat_id=source_message.chat.id,
                     text=f"<b>{download_url}</b>",
                     parse_mode="HTML",
                     link_preview_options={
                         "is_disabled": False,
                     },
-               )
+                )
 
             await upload_artifact(
                 bot=source_message.bot,
